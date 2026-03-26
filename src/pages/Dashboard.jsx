@@ -27,6 +27,11 @@ import useStore from "../store/useStore";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import ExportButton from "../components/ExportButton";
 import BulkExpenseTable from "../components/BulkExpenseTable";
+import { calculateSpendingForecast } from "../lib/forecast";
+import {
+  formatConfidenceLabel,
+  formatCurrencyINR,
+} from "../lib/formatters";
 
 const CATEGORY_PALETTE = [
   "#dc2626", // Red
@@ -73,6 +78,8 @@ export default function Dashboard({ setView }) {
   const prevMonthDate = new Date(currentYear, currentMonth - 2);
   const prevStartDate = format(startOfMonth(prevMonthDate), "yyyy-MM-dd");
   const prevEndDate = format(endOfMonth(prevMonthDate), "yyyy-MM-dd");
+  const yearStartDate = format(new Date(currentYear, 0, 1), "yyyy-MM-dd");
+  const yearEndDate = format(new Date(currentYear, 11, 31), "yyyy-MM-dd");
 
   const expenses = useQuery(api.expenses.list, {
     userId: user?.id || "",
@@ -90,6 +97,12 @@ export default function Dashboard({ setView }) {
     userId: user?.id || "",
     startDate: prevStartDate,
     endDate: prevEndDate,
+  });
+
+  const yearExpenses = useQuery(api.expenses.list, {
+    userId: user?.id || "",
+    startDate: yearStartDate,
+    endDate: yearEndDate,
   });
 
   const totals = useMemo(() => {
@@ -187,6 +200,15 @@ export default function Dashboard({ setView }) {
     }));
   }, [totals]);
 
+  const spendingForecast = useMemo(() => {
+    if (!expenses || !yearExpenses) return null;
+
+    return calculateSpendingForecast({
+      transactions: expenses,
+      monthlyTransactions: yearExpenses,
+    });
+  }, [expenses, yearExpenses]);
+
   const greetings = useMemo(() => {
     if (!user) return "Hello";
     const now = new Date();
@@ -278,7 +300,7 @@ export default function Dashboard({ setView }) {
       </header>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
         {!totals ? (
           <>
             <StatCardSkeleton />
@@ -413,6 +435,81 @@ export default function Dashboard({ setView }) {
                 </p>
               </div>
             </div>
+          </>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {!spendingForecast ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <section className="stat-card p-8 rounded-[2.5rem] bg-card border border-primary/20 flex flex-col justify-between min-h-48">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                    Projected Monthly Spending
+                  </p>
+                  <p
+                    className="text-xs text-muted-foreground font-medium"
+                    title="Based on your current spending rate"
+                  >
+                    Based on your current spending rate
+                  </p>
+                </div>
+                <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                  <Calendar size={14} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-4xl font-black tabular-nums text-foreground">
+                  {formatCurrencyINR(spendingForecast.monthly_projection)}
+                </h3>
+                <p className="text-xs text-muted-foreground font-medium">
+                  Daily avg {formatCurrencyINR(spendingForecast.daily_avg)}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  {formatConfidenceLabel(spendingForecast.confidence)}
+                </p>
+              </div>
+            </section>
+
+            <section className="stat-card p-8 rounded-[2.5rem] bg-card border border-amber-500/20 flex flex-col justify-between min-h-48">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">
+                    Projected Yearly Spending
+                  </p>
+                  <p
+                    className="text-xs text-muted-foreground font-medium"
+                    title="Based on your current spending rate"
+                  >
+                    Based on your current spending rate
+                  </p>
+                </div>
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                  <TrendingUp size={14} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-4xl font-black tabular-nums text-foreground">
+                  {formatCurrencyINR(spendingForecast.yearly_projection)}
+                </h3>
+                <p className="text-xs text-muted-foreground font-medium">
+                  At this rate, you&apos;ll spend{" "}
+                  {formatCurrencyINR(spendingForecast.yearly_projection)} this
+                  year
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  {spendingForecast.month_samples > 1
+                    ? `${spendingForecast.month_samples} months tracked`
+                    : `${spendingForecast.tracked_days} days tracked`}
+                </p>
+              </div>
+            </section>
           </>
         )}
       </div>
