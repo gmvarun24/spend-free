@@ -11,6 +11,7 @@ import {
   Wallet2,
   TableProperties,
   Target,
+  TrendingUp,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import useStore from "../store/useStore";
@@ -19,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "expense-projection", label: "Expense Projection", icon: TrendingUp },
   { id: "budget", label: "Budget", icon: Target },
   { id: "add-entries", label: "Log Data", icon: TableProperties },
   { id: "settings", label: "Settings", icon: Settings },

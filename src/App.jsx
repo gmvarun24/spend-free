@@ -7,6 +7,7 @@ import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import AddEntries from "./pages/AddEntries";
 import Budget from "./pages/Budget";
+import ExpenseProjection from "./pages/ExpenseProjection";
 import Layout from "./components/Layout";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -357,6 +358,7 @@ function App() {
   return (
     <Layout currentView={view} setView={setView}>
       {view === "dashboard" && <Dashboard setView={setView} />}
+      {view === "expense-projection" && <ExpenseProjection />}
       {view === "budget" && <Budget />}
       {view === "add-entries" && <AddEntries />}
       {view === "settings" && <Settings />}

@@ -1,4 +1,18 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+export const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 const toDate = (value) => {
   const parsed = new Date(value);
@@ -105,4 +119,77 @@ export function calculateSpendingForecast({
     total_spent: totalSpent,
     ignored_outliers: ignoreOutliers,
   };
+}
+
+export function buildCategoryProjectionRows({
+  transactions = [],
+  categories = [],
+  overrides = {},
+} = {}) {
+  const debitTransactions = transactions.filter(
+    (transaction) => transaction.transactionType !== "Credit"
+  );
+
+  const categorySet =
+    categories.length > 0
+      ? categories
+      : Array.from(
+          new Set(
+            debitTransactions
+              .map((transaction) => transaction.categoryId)
+              .filter(Boolean)
+          )
+        );
+
+  return categorySet.map((category) => {
+    const actualMonthly = Array(12).fill(0);
+
+    debitTransactions.forEach((transaction) => {
+      if (transaction.categoryId !== category) return;
+
+      const date = toDate(transaction.date ?? transaction.timestamp);
+      if (!date) return;
+
+      actualMonthly[date.getMonth()] += transaction.amount;
+    });
+
+    const actualTotal = actualMonthly.reduce((sum, amount) => sum + amount, 0);
+    const activeMonths = actualMonthly.filter((amount) => amount > 0).length;
+    const suggestedMonthly = activeMonths > 0 ? actualTotal / activeMonths : 0;
+    const monthlyAssumption =
+      overrides[category] !== undefined
+        ? Math.max(0, Number(overrides[category]) || 0)
+        : suggestedMonthly;
+    const assumedMonths = actualMonthly.map((amount) => amount <= 0);
+    const projectedMonthly = actualMonthly.map((amount) =>
+      amount > 0 ? amount : monthlyAssumption
+    );
+    const projectedYearly = projectedMonthly.reduce(
+      (sum, amount) => sum + amount,
+      0
+    );
+
+    return {
+      category,
+      actualMonthly,
+      projectedMonthly,
+      assumedMonths,
+      actualTotal,
+      projectedYearly,
+      activeMonths,
+      suggestedMonthly,
+      monthlyAssumption,
+    };
+  });
+}
+
+export function buildProjectionTimeline(rows = []) {
+  return MONTH_LABELS.map((month, index) => ({
+    month,
+    actual: rows.reduce((sum, row) => sum + (row.actualMonthly[index] || 0), 0),
+    projected: rows.reduce(
+      (sum, row) => sum + (row.projectedMonthly[index] || 0),
+      0
+    ),
+  }));
 }
